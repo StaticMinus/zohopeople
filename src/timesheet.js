@@ -6,9 +6,9 @@ async function main() {
   const args = parseArgs();
   const now = new Date();
 
-  // Determine target Year & Month
+  // Target Year & Month
   let year = now.getFullYear();
-  let month = now.getMonth() + 1; // 1-indexed (1-12)
+  let month = now.getMonth() + 1; // 1-indexed
 
   if (args.month) {
     const [yStr, mStr] = args.month.split('-');
@@ -18,40 +18,54 @@ async function main() {
     }
   }
 
-  const hoursPerDay = args.hours || config.timesheetWorkHours;
   const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' });
-
-  log(`--- Processing Timesheet for ${monthName} ${year} ---`, 'timesheet.log');
-  log(`Target Settings: ${hoursPerDay} hours/day | Job: ${config.timesheetJobName}`);
-
   const weekdays = getWeekdaysInMonth(year, month);
-  log(`Found ${weekdays.length} weekdays (Mon-Fri) in ${monthName} ${year}. Total target hours: ${weekdays.length * hoursPerDay} hrs.`);
+
+  // Requirement: Minimum 160 hours per month for payday approval by the 20th
+  const MIN_MONTHLY_HOURS = 160.0;
+  let defaultDailyHours = args.hours || config.timesheetWorkHours || 8.0;
+
+  // Calculate required daily hours to meet minimum 160 hours threshold
+  let dailyHours = defaultDailyHours;
+  const projectedTotal = weekdays.length * dailyHours;
+
+  if (projectedTotal < MIN_MONTHLY_HOURS && weekdays.length > 0) {
+    // Auto-adjust daily hours to hit 160 hrs target (e.g. 160 / 19 days = 8.42 hrs/day)
+    dailyHours = parseFloat((MIN_MONTHLY_HOURS / weekdays.length).toFixed(2));
+    log(`Notice: Adjusting daily hours to ${dailyHours} hrs/day to meet minimum monthly threshold of ${MIN_MONTHLY_HOURS} hrs across ${weekdays.length} weekdays.`);
+  }
+
+  const totalCalculatedHours = (weekdays.length * dailyHours).toFixed(1);
+
+  log(`--- Processing Timesheet for ${monthName} ${year} (Pay Day: 25th | Submission Target: By 20th) ---`, 'timesheet.log');
+  log(`Month Summary: ${weekdays.length} weekdays (Mon-Fri) | Daily Rate: ${dailyHours} hrs/day | Total Projected: ${totalCalculatedHours} hrs`);
 
   if (args.dryRun) {
-    log(`[DRY RUN] Generated ${weekdays.length} timesheet entries for ${monthName} ${year}:`);
+    log(`[DRY RUN] Simulating ${weekdays.length} timesheet submissions for ${monthName} ${year}:`);
     weekdays.forEach(({ dateStr }) => {
-      log(`  -> Date: ${dateStr} | Hours: ${hoursPerDay} | Job: ${config.timesheetJobName}`);
+      log(`  -> Date: ${dateStr} | Hours: ${dailyHours} | Job: ${config.timesheetJobName}`);
     });
-    log(`[DRY RUN] Completed simulation. No API calls were made.`, 'timesheet.log');
+    log(`[DRY RUN] Completed. Total Hours: ${totalCalculatedHours} hrs (Min required: ${MIN_MONTHLY_HOURS} hrs). No API calls made.`, 'timesheet.log');
     process.exit(0);
   }
 
   let successCount = 0;
   let failCount = 0;
 
-  for (const { dateStr, zohoFormat } of weekdays) {
+  for (const { dateStr } of weekdays) {
     try {
-      log(`Processing entry for date ${dateStr}...`);
-      await addTimeLog(dateStr, hoursPerDay, config.timesheetJobName);
+      log(`Submitting timesheet entry for ${dateStr} (${dailyHours} hrs)...`);
+      await addTimeLog(dateStr, dailyHours, config.timesheetJobName);
       successCount++;
     } catch (err) {
-      log(`Failed to record timesheet entry for ${dateStr}: ${err.message}`, 'timesheet.log');
+      log(`Failed entry for ${dateStr}: ${err.message}`, 'timesheet.log');
       failCount++;
     }
   }
 
-  log(`--- Timesheet Processing Complete ---`, 'timesheet.log');
-  log(`Summary for ${monthName} ${year}: ${successCount} successful, ${failCount} failed out of ${weekdays.length} days. Total Hours: ${successCount * hoursPerDay} hrs.`);
+  const finalHoursLogged = (successCount * dailyHours).toFixed(1);
+  log(`--- Timesheet Submission Complete ---`, 'timesheet.log');
+  log(`Final Status: ${successCount}/${weekdays.length} days logged | Total Hours Logged: ${finalHoursLogged} hrs (Threshold: ${MIN_MONTHLY_HOURS} hrs).`);
 }
 
 main();

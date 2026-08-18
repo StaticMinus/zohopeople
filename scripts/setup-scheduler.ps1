@@ -1,4 +1,4 @@
-# PowerShell script to create Windows Task Scheduler tasks for Zoho Check-In and Check-Out
+# PowerShell script to create Windows Task Scheduler tasks for Zoho Check-In, Check-Out, and Timesheets
 param (
     [string]$CheckInTime = "08:55",
     [string]$CheckOutTime = "17:00",
@@ -15,7 +15,6 @@ if (-not $NodePath) {
 
 Write-Host "Setting up Windows Task Scheduler jobs for Zoho People..." -ForegroundColor Green
 Write-Host "Working Directory: $WorkingDirectory"
-Write-Host "Node.js Executable: $NodePath"
 
 # 1. Create Daily Check-In Task
 $CheckInAction = New-ScheduledTaskAction -Execute $NodePath -Argument "src/checkin.js --action checkin" -WorkingDirectory $WorkingDirectory
@@ -27,12 +26,12 @@ $CheckOutAction = New-ScheduledTaskAction -Execute $NodePath -Argument "src/chec
 $CheckOutTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At $CheckOutTime
 Register-ScheduledTask -TaskName "ZohoPeople_CheckOut" -Action $CheckOutAction -Trigger $CheckOutTrigger -Description "Automated Zoho People Check-Out (Mon-Fri)" -Force
 
-# 3. Create Monthly Timesheet Task (Runs on 28th of every month at 18:00)
+# 3. Create Monthly Timesheet Task (Runs on 20th of every month at 18:00 for Payday approval by 25th)
 $TimesheetAction = New-ScheduledTaskAction -Execute $NodePath -Argument "src/timesheet.js" -WorkingDirectory $WorkingDirectory
-$TimesheetTrigger = New-ScheduledTaskTrigger -Monthly -DaysOfMonth 28 -At "18:00"
-Register-ScheduledTask -TaskName "ZohoPeople_MonthlyTimesheet" -Action $TimesheetAction -Trigger $TimesheetTrigger -Description "Automated Zoho People Monthly Timesheet Submission" -Force
+$TimesheetTrigger = New-ScheduledTaskTrigger -Monthly -DaysOfMonth 20 -At "18:00"
+Register-ScheduledTask -TaskName "ZohoPeople_MonthlyTimesheet" -Action $TimesheetAction -Trigger $TimesheetTrigger -Description "Automated Zoho People Monthly Timesheet Submission (Min 160 hrs)" -Force
 
 Write-Host "Tasks successfully registered in Windows Task Scheduler!" -ForegroundColor Green
 Write-Host "  - ZohoPeople_CheckIn (Mon-Fri at $CheckInTime)"
 Write-Host "  - ZohoPeople_CheckOut (Mon-Fri at $CheckOutTime)"
-Write-Host "  - ZohoPeople_MonthlyTimesheet (Monthly on 28th at 18:00)"
+Write-Host "  - ZohoPeople_MonthlyTimesheet (Monthly on 20th at 18:00 - Ensures >= 160 hrs for Pay Day on 25th)"
