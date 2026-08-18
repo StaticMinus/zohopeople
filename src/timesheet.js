@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { addTimeLog } from './zohoApi.js';
-import { log, getWeekdaysInMonth, parseArgs } from './utils.js';
+import { log, getWeekdaysInMonth, getTimesheetSubmissionDate, parseArgs } from './utils.js';
 
 async function main() {
   const args = parseArgs();
@@ -20,8 +20,10 @@ async function main() {
 
   const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' });
   const weekdays = getWeekdaysInMonth(year, month);
+  const submissionDate = getTimesheetSubmissionDate(year, month);
+  const submissionDateStr = submissionDate.toDateString();
 
-  // Requirement: Minimum 160 hours per month for payday approval by the 20th
+  // Requirement: Minimum 160 hours per month for payday approval (Payday: 25th)
   const MIN_MONTHLY_HOURS = 160.0;
   let defaultDailyHours = args.hours || config.timesheetWorkHours || 8.0;
 
@@ -30,14 +32,14 @@ async function main() {
   const projectedTotal = weekdays.length * dailyHours;
 
   if (projectedTotal < MIN_MONTHLY_HOURS && weekdays.length > 0) {
-    // Auto-adjust daily hours to hit 160 hrs target (e.g. 160 / 19 days = 8.42 hrs/day)
     dailyHours = parseFloat((MIN_MONTHLY_HOURS / weekdays.length).toFixed(2));
     log(`Notice: Adjusting daily hours to ${dailyHours} hrs/day to meet minimum monthly threshold of ${MIN_MONTHLY_HOURS} hrs across ${weekdays.length} weekdays.`);
   }
 
   const totalCalculatedHours = (weekdays.length * dailyHours).toFixed(1);
 
-  log(`--- Processing Timesheet for ${monthName} ${year} (Pay Day: 25th | Submission Target: By 20th) ---`, 'timesheet.log');
+  log(`--- Processing Timesheet for ${monthName} ${year} ---`, 'timesheet.log');
+  log(`Payday: 25th | Target Submission Friday: ${submissionDateStr} | Min Target: ${MIN_MONTHLY_HOURS} hrs`);
   log(`Month Summary: ${weekdays.length} weekdays (Mon-Fri) | Daily Rate: ${dailyHours} hrs/day | Total Projected: ${totalCalculatedHours} hrs`);
 
   if (args.dryRun) {
@@ -45,7 +47,7 @@ async function main() {
     weekdays.forEach(({ dateStr }) => {
       log(`  -> Date: ${dateStr} | Hours: ${dailyHours} | Job: ${config.timesheetJobName}`);
     });
-    log(`[DRY RUN] Completed. Total Hours: ${totalCalculatedHours} hrs (Min required: ${MIN_MONTHLY_HOURS} hrs). No API calls made.`, 'timesheet.log');
+    log(`[DRY RUN] Completed. Total Hours: ${totalCalculatedHours} hrs (Min required: ${MIN_MONTHLY_HOURS} hrs). Target Submission Friday: ${submissionDateStr}. No API calls made.`, 'timesheet.log');
     process.exit(0);
   }
 

@@ -2,12 +2,12 @@ name: Zoho People Automated Check-in & Timesheet
 
 on:
   schedule:
-    # Check-in Mon-Fri at 08:55 UTC (adjust for local timezone)
+    # Check-in Mon-Fri at 08:55 UTC
     - cron: '55 8 * * 1-5'
-    # Check-out Mon-Fri at 17:00 UTC (adjust for local timezone)
+    # Check-out Mon-Fri at 17:00 UTC
     - cron: '0 17 * * 1-5'
-    # Monthly Timesheet on the 20th of every month at 18:00 UTC (Pay Day is 25th)
-    - cron: '0 18 20 * *'
+    # Timesheet Friday check at 18:00 UTC every Friday
+    - cron: '0 18 * * 5'
   workflow_dispatch:
     inputs:
       action:
@@ -69,9 +69,13 @@ jobs:
             fi
           else
             HOUR=$(date -u +%H)
-            DOM=$(date -u +%d)
-            if [ "$DOM" = "20" ] && [ "$HOUR" = "18" ]; then
-              echo "Executing monthly timesheet submission on the 20th for Payday approval..."
+            DOW=$(date -u +%u) # 5 = Friday
+            
+            # Check if today is the Friday submission day for payday (25th)
+            IS_SUBMISSION_DAY=$(node -e "import('./src/utils.js').then(u => console.log(u.isTimesheetSubmissionDay()))")
+
+            if [ "$DOW" = "5" ] && [ "$HOUR" = "18" ] && [ "$IS_SUBMISSION_DAY" = "true" ]; then
+              echo "Today is the target Friday before 25th Payday! Executing monthly timesheet submission..."
               npm run timesheet
             elif [ "$HOUR" -lt 12 ]; then
               echo "Executing morning check-in..."

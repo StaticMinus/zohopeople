@@ -34,10 +34,40 @@ export function isWeekday(date = new Date()) {
 }
 
 /**
+ * Calculate the exact Friday timesheet submission date for a given month.
+ * Rule: Payday is the 25th. Timesheet must be submitted on the Friday immediately preceding the 25th.
+ * (e.g. If 25th is Tuesday, submission Friday is 21st. If 25th is Monday, submission Friday is 22nd).
+ * @param {number} year 
+ * @param {number} month (1-indexed)
+ * @returns {Date}
+ */
+export function getTimesheetSubmissionDate(year, month) {
+  const date25 = new Date(year, month - 1, 25);
+  const dayOfWeek = date25.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+
+  let daysToSubtract = (dayOfWeek + 2) % 7;
+  if (daysToSubtract === 0) daysToSubtract = 7;
+
+  return new Date(year, month - 1, 25 - daysToSubtract);
+}
+
+/**
+ * Check if today is the designated Friday timesheet submission day for the current month
+ * @param {Date} date 
+ * @returns {boolean}
+ */
+export function isTimesheetSubmissionDay(date = new Date()) {
+  const targetSubmissionDate = getTimesheetSubmissionDate(date.getFullYear(), date.getMonth() + 1);
+  return date.getFullYear() === targetSubmissionDate.getFullYear() &&
+         date.getMonth() === targetSubmissionDate.getMonth() &&
+         date.getDate() === targetSubmissionDate.getDate();
+}
+
+/**
  * Get all weekday dates (Mon-Fri) for a given month
  * @param {number} year 
- * @param {number} month (1-indexed: 1 = Jan, 12 = Dec)
- * @returns {Array<{date: Date, dateStr: string}>}
+ * @param {number} month (1-indexed)
+ * @returns {Array<{date: Date, dateStr: string, zohoFormat: string}>}
  */
 export function getWeekdaysInMonth(year, month) {
   const weekdays = [];
@@ -93,11 +123,9 @@ export function applyTimeJitter(baseTimeStr, jitterMinutes = 5) {
   const [targetHours, targetMins] = baseTimeStr.split(':').map(Number);
   const now = new Date();
   
-  // Set to target base time
   now.setHours(targetHours, targetMins, 0, 0);
 
   if (jitterMinutes > 0) {
-    // Generate random jitter between -jitterMinutes and +jitterMinutes
     const randomOffsetMs = (Math.random() * (jitterMinutes * 2) - jitterMinutes) * 60 * 1000;
     now.setTime(now.getTime() + randomOffsetMs);
   }
@@ -111,10 +139,10 @@ export function applyTimeJitter(baseTimeStr, jitterMinutes = 5) {
 export function parseArgs() {
   const args = process.argv.slice(2);
   const options = {
-    action: null, // 'checkin' | 'checkout'
+    action: null,
     dryRun: false,
     force: false,
-    month: null, // 'YYYY-MM'
+    month: null,
     hours: null
   };
 
