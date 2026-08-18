@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zoho People Automation Control Center</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="background-glob glob-1"></div>
+  <div class="background-glob glob-2"></div>
+
+  <div class="app-container">
+    <!-- Sidebar / Navigation Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="logo-icon">
+          <i class="fa-solid fa-user-clock"></i>
+        </div>
+        <div class="brand-text">
+          <h1>Zoho <span>Auto</span></h1>
+          <p>Attendance & Timesheet Hub</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="status-badge online" id="system-status">
+          <span class="pulse-dot"></span>
+          <span class="status-text">Automation Active</span>
+        </div>
+        <div class="user-chip">
+          <i class="fa-solid fa-circle-user"></i>
+          <span id="user-email">Loading...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero KPI Stats -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon checkin">
+          <i class="fa-solid fa-right-to-bracket"></i>
+        </div>
+        <div class="kpi-details">
+          <span class="kpi-label">Morning Check-In</span>
+          <h2 id="kpi-checkin-time">09:00 AM</h2>
+          <p class="kpi-subtext"><i class="fa-solid fa-shuffle"></i> Jitter: <span id="kpi-jitter">±5</span> mins</p>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon checkout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </div>
+        <div class="kpi-details">
+          <span class="kpi-label">Evening Check-Out</span>
+          <h2 id="kpi-checkout-time">05:00 PM</h2>
+          <p class="kpi-subtext"><i class="fa-solid fa-calendar-check"></i> Mon - Fri Schedule</p>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon timesheet">
+          <i class="fa-solid fa-business-time"></i>
+        </div>
+        <div class="kpi-details">
+          <span class="kpi-label">Monthly Target</span>
+          <h2 id="kpi-work-hours">8.0 hrs/day</h2>
+          <p class="kpi-subtext"><i class="fa-solid fa-briefcase"></i> <span id="kpi-job-name">General Work</span></p>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon mode">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="kpi-details">
+          <span class="kpi-label">System Mode</span>
+          <h2>Automated</h2>
+          <p class="kpi-subtext"><i class="fa-solid fa-shield-halved"></i> Cloud / Scheduler Ready</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content Area -->
+    <main class="dashboard-grid">
+      <!-- Left Column: Quick Manual Controls & Settings -->
+      <div class="left-column">
+        <!-- Quick Action Trigger Card -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-bolt"></i> Manual Override Controls</h3>
+            <span class="tag">Instant Trigger</span>
+          </div>
+          <p class="card-description">While automation runs seamlessly in the background, you can trigger instant manual check-ins or timesheets anytime.</p>
+
+          <div class="action-buttons-grid">
+            <button class="btn btn-primary" id="btn-checkin">
+              <i class="fa-solid fa-right-to-bracket"></i>
+              <span>Trigger Check-In</span>
+            </button>
+
+            <button class="btn btn-secondary" id="btn-checkout">
+              <i class="fa-solid fa-right-from-bracket"></i>
+              <span>Trigger Check-Out</span>
+            </button>
+
+            <button class="btn btn-accent" id="btn-timesheet">
+              <i class="fa-solid fa-calendar-plus"></i>
+              <span>Submit Monthly Timesheet</span>
+            </button>
+          </div>
+
+          <div class="dryrun-toggle">
+            <label class="switch">
+              <input type="checkbox" id="dryrun-mode">
+              <span class="slider round"></span>
+            </label>
+            <span class="toggle-label">Dry-Run Simulation Mode (Test without submitting to Zoho)</span>
+          </div>
+        </div>
+
+        <!-- Schedule & Settings Card -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-sliders"></i> Schedule & Jitter Config</h3>
+          </div>
+
+          <form id="settings-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="input-checkin"><i class="fa-regular fa-clock"></i> Check-In Time</label>
+                <input type="time" id="input-checkin" value="09:00" required>
+              </div>
+
+              <div class="form-group">
+                <label for="input-checkout"><i class="fa-regular fa-clock"></i> Check-Out Time</label>
+                <input type="time" id="input-checkout" value="17:00" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="input-jitter"><i class="fa-solid fa-shuffle"></i> Time Jitter (Minutes)</label>
+                <input type="number" id="input-jitter" min="0" max="30" value="5">
+              </div>
+
+              <div class="form-group">
+                <label for="input-hours"><i class="fa-solid fa-stopwatch"></i> Daily Hours</label>
+                <input type="number" id="input-hours" step="0.5" min="1" max="24" value="8.0">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="input-job"><i class="fa-solid fa-briefcase"></i> Default Job Name</label>
+              <input type="text" id="input-job" value="General Work">
+            </div>
+
+            <button type="submit" class="btn btn-save" id="btn-save-settings">
+              <i class="fa-solid fa-floppy-disk"></i> Save Preferences
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Right Column: Live Execution Logs -->
+      <div class="right-column">
+        <div class="glass-card log-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-terminal"></i> Live Execution Logs</h3>
+            <div class="tab-pills">
+              <button class="pill active" data-tab="attendance">Attendance</button>
+              <button class="pill" data-tab="timesheet">Timesheet</button>
+              <button class="pill" data-tab="error">Errors</button>
+            </div>
+          </div>
+
+          <div class="terminal-container">
+            <div class="terminal-header">
+              <div class="terminal-dots">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+              </div>
+              <span class="terminal-title" id="current-log-title">logs/attendance.log</span>
+              <button class="refresh-btn" id="btn-refresh-logs" title="Refresh Logs"><i class="fa-solid fa-arrows-rotate"></i></button>
+            </div>
+            <div class="terminal-body" id="log-content">
+              <div class="log-line text-muted">Fetching log entries...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
