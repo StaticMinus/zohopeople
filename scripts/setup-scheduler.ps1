@@ -2,7 +2,7 @@
 param (
     [string]$CheckInTime = "08:55",
     [string]$CheckOutTime = "17:00",
-    [string]$ScriptDir = $PSScriptRoot\..
+    [string]$ScriptDir = "$PSScriptRoot\.."
 )
 
 $WorkingDirectory = (Resolve-Path $ScriptDir).Path
@@ -26,12 +26,17 @@ $CheckOutAction = New-ScheduledTaskAction -Execute $NodePath -Argument "src/chec
 $CheckOutTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At $CheckOutTime
 Register-ScheduledTask -TaskName "ZohoPeople_CheckOut" -Action $CheckOutAction -Trigger $CheckOutTrigger -Description "Automated Zoho People Check-Out (Mon-Fri)" -Force
 
-# 3. Create Monthly Timesheet Task (Runs on 20th of every month at 18:00 for Payday approval by 25th)
+# 3. Create Weekly Timesheet Task (Runs every Friday at 18:00)
+# Clean up legacy monthly task if present
+try {
+    Unregister-ScheduledTask -TaskName "ZohoPeople_MonthlyTimesheet" -Confirm:$false -ErrorAction SilentlyContinue
+} catch {}
+
 $TimesheetAction = New-ScheduledTaskAction -Execute $NodePath -Argument "src/timesheet.js" -WorkingDirectory $WorkingDirectory
-$TimesheetTrigger = New-ScheduledTaskTrigger -Monthly -DaysOfMonth 20 -At "18:00"
-Register-ScheduledTask -TaskName "ZohoPeople_MonthlyTimesheet" -Action $TimesheetAction -Trigger $TimesheetTrigger -Description "Automated Zoho People Monthly Timesheet Submission (Min 160 hrs)" -Force
+$TimesheetTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Friday -At "18:00"
+Register-ScheduledTask -TaskName "ZohoPeople_WeeklyTimesheet" -Action $TimesheetAction -Trigger $TimesheetTrigger -Description "Automated Zoho People Weekly Timesheet Submission (Mon-Fri 40 hrs)" -Force
 
 Write-Host "Tasks successfully registered in Windows Task Scheduler!" -ForegroundColor Green
 Write-Host "  - ZohoPeople_CheckIn (Mon-Fri at $CheckInTime)"
 Write-Host "  - ZohoPeople_CheckOut (Mon-Fri at $CheckOutTime)"
-Write-Host "  - ZohoPeople_MonthlyTimesheet (Monthly on 20th at 18:00 - Ensures >= 160 hrs for Pay Day on 25th)"
+Write-Host "  - ZohoPeople_WeeklyTimesheet (Every Friday at 18:00 - Submits weekly 40 hrs)"

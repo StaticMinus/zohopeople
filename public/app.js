@@ -125,9 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  const btnCatchup = document.getElementById('btn-catchup');
+
   btnTimesheet.addEventListener('click', async () => {
     btnTimesheet.disabled = true;
-    showToast('Processing Monthly Timesheet...', 'info');
+    showToast('Processing Current Weekly Timesheet...', 'info');
 
     try {
       const res = await fetch('/api/timesheet', {
@@ -138,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
 
       if (data.success) {
-        showToast(data.dryRun ? `Simulated ${data.weekdaysCount} days (${data.totalHours} hrs)` : `Submitted timesheets for ${data.processedDays} days!`, 'success');
+        showToast(data.dryRun ? `Simulated weekly timesheet` : `Processed weekly timesheet successfully!`, 'success');
         loadLogs('timesheet');
       } else {
         showToast(`Timesheet Error: ${data.error}`, 'error');
@@ -149,6 +151,33 @@ document.addEventListener('DOMContentLoaded', () => {
       btnTimesheet.disabled = false;
     }
   });
+
+  if (btnCatchup) {
+    btnCatchup.addEventListener('click', async () => {
+      btnCatchup.disabled = true;
+      showToast('Scanning and Backfilling Unsubmitted Weeks...', 'info');
+
+      try {
+        const res = await fetch('/api/timesheet/catchup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dryRun: dryRunToggle.checked })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showToast(`Catch-up complete: Processed ${data.processedWeeksCount} week(s)!`, 'success');
+          loadLogs('timesheet');
+        } else {
+          showToast(`Catch-up Error: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Catch-up failed: ${err.message}`, 'error');
+      } finally {
+        btnCatchup.disabled = false;
+      }
+    });
+  }
 
   // 4. Save Settings Form
   settingsForm.addEventListener('submit', async (e) => {

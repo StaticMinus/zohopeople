@@ -6,7 +6,7 @@ on:
     - cron: '55 8 * * 1-5'
     # Check-out Mon-Fri at 17:00 UTC
     - cron: '0 17 * * 1-5'
-    # Timesheet Friday check at 18:00 UTC every Friday
+    # Weekly Timesheet submission at 18:00 UTC every Friday
     - cron: '0 18 * * 5'
   workflow_dispatch:
     inputs:
@@ -19,6 +19,7 @@ on:
           - checkin
           - checkout
           - timesheet
+          - timesheet-catchup
           - checkin-dry
           - timesheet-dry
 
@@ -52,7 +53,9 @@ jobs:
           DEFAULT_CHECKOUT_TIME: ${{ secrets.DEFAULT_CHECKOUT_TIME || '17:00' }}
           JITTER_MINUTES: ${{ secrets.JITTER_MINUTES || '5' }}
           TIMESHEET_WORK_HOURS: ${{ secrets.TIMESHEET_WORK_HOURS || '8.0' }}
-          TIMESHEET_JOB_NAME: ${{ secrets.TIMESHEET_JOB_NAME || 'General Work' }}
+          TIMESHEET_PROJECT_ID: ${{ secrets.TIMESHEET_PROJECT_ID || '848867000000502035' }}
+          TIMESHEET_JOB_NAME: ${{ secrets.TIMESHEET_JOB_NAME || 'Project - RAN' }}
+          TIMESHEET_BILLABLE_STATUS: ${{ secrets.TIMESHEET_BILLABLE_STATUS || 'Non-Billable' }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             ACTION="${{ inputs.action }}"
@@ -62,6 +65,8 @@ jobs:
               npm run checkout
             elif [ "$ACTION" = "timesheet" ]; then
               npm run timesheet
+            elif [ "$ACTION" = "timesheet-catchup" ]; then
+              npm run timesheet:catchup
             elif [ "$ACTION" = "checkin-dry" ]; then
               npm run checkin:dry
             elif [ "$ACTION" = "timesheet-dry" ]; then
@@ -71,11 +76,8 @@ jobs:
             HOUR=$(date -u +%H)
             DOW=$(date -u +%u) # 5 = Friday
             
-            # Check if today is the Friday submission day for payday (25th)
-            IS_SUBMISSION_DAY=$(node -e "import('./src/utils.js').then(u => console.log(u.isTimesheetSubmissionDay()))")
-
-            if [ "$DOW" = "5" ] && [ "$HOUR" = "18" ] && [ "$IS_SUBMISSION_DAY" = "true" ]; then
-              echo "Today is the target Friday before 25th Payday! Executing monthly timesheet submission..."
+            if [ "$DOW" = "5" ] && [ "$HOUR" = "18" ]; then
+              echo "Friday 18:00 UTC detected! Executing weekly timesheet submission..."
               npm run timesheet
             elif [ "$HOUR" -lt 12 ]; then
               echo "Executing morning check-in..."

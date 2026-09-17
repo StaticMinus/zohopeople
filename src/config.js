@@ -29,7 +29,11 @@ export const config = {
   timesheetWorkHours: parseFloat(process.env.TIMESHEET_WORK_HOURS || '8.0'),
   timesheetProjectId: process.env.TIMESHEET_PROJECT_ID || '',
   timesheetJobName: process.env.TIMESHEET_JOB_NAME || 'General Work',
-  timesheetBillableStatus: process.env.TIMESHEET_BILLABLE_STATUS || 'Billable'
+  timesheetBillableStatus: process.env.TIMESHEET_BILLABLE_STATUS || 'Non-Billable',
+
+  // Cloud / Cron settings
+  timezone: process.env.TIMEZONE || process.env.TZ || 'Africa/Lagos',
+  cronSecret: process.env.CRON_SECRET || ''
 };
 
 /**

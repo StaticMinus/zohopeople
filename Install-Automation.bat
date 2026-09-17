@@ -4,7 +4,7 @@ color 0A
 
 echo ============================================================
 echo   Installing Automated Zoho People Scheduler
-echo   Runs Mon-Fri Check-in (08:55), Check-out (17:00), & Monthly Timesheets
+echo   Runs Mon-Fri Check-in (08:55), Check-out (17:00), & Weekly Timesheets (Fridays)
 echo ============================================================
 echo.
 

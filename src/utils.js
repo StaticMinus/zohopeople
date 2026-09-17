@@ -34,60 +34,135 @@ export function isWeekday(date = new Date()) {
 }
 
 /**
- * Calculate the exact Friday timesheet submission date for a given month.
- * Rule: Payday is the 25th. Timesheet must be submitted on the Friday immediately preceding the 25th.
- * (e.g. If 25th is Tuesday, submission Friday is 21st. If 25th is Monday, submission Friday is 22nd).
- * @param {number} year 
- * @param {number} month (1-indexed)
- * @returns {Date}
- */
-export function getTimesheetSubmissionDate(year, month) {
-  const date25 = new Date(year, month - 1, 25);
-  const dayOfWeek = date25.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
-
-  let daysToSubtract = (dayOfWeek + 2) % 7;
-  if (daysToSubtract === 0) daysToSubtract = 7;
-
-  return new Date(year, month - 1, 25 - daysToSubtract);
-}
-
-/**
- * Check if today is the designated Friday timesheet submission day for the current month
+ * Check if today is the designated weekly timesheet submission day (Friday)
  * @param {Date} date 
  * @returns {boolean}
  */
 export function isTimesheetSubmissionDay(date = new Date()) {
-  const targetSubmissionDate = getTimesheetSubmissionDate(date.getFullYear(), date.getMonth() + 1);
-  return date.getFullYear() === targetSubmissionDate.getFullYear() &&
-         date.getMonth() === targetSubmissionDate.getMonth() &&
-         date.getDate() === targetSubmissionDate.getDate();
+  return date.getDay() === 5; // Friday
 }
 
 /**
- * Get all weekday dates (Mon-Fri) for a given month
+ * Get date range for the week containing the given date (Monday to Friday)
+ * @param {Date|string} inputDate 
+ * @returns {{ fromDateStr: string, toDateStr: string, fromDate: Date, toDate: Date, formattedRange: string }}
+ */
+export function getWeekDateRange(inputDate = new Date()) {
+  const d = typeof inputDate === 'string' ? new Date(inputDate) : new Date(inputDate);
+  const day = d.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+
+  // Distance to Monday (if Sun=0, go back 6 days; otherwise 1 - day)
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  friday.setHours(23, 59, 59, 999);
+
+  const formatShort = (date) => {
+    const dayNum = date.getDate();
+    const monthShort = date.toLocaleString('default', { month: 'short' });
+    const yr = date.getFullYear();
+    return `${dayNum} ${monthShort} ${yr}`;
+  };
+
+  return {
+    fromDateStr: formatDateYMD(monday),
+    toDateStr: formatDateYMD(friday),
+    fromDate: monday,
+    toDate: friday,
+    formattedRange: `${formatShort(monday)} to ${formatShort(friday)}`
+  };
+}
+
+/**
+ * Get all weekday dates (Mon-Fri) for the week containing the given date
+ * @param {Date|string} inputDate 
+ * @returns {Array<{date: Date, dateStr: string, zohoFormat: string, dayName: string}>}
+ */
+export function getWeekdaysInWeek(inputDate = new Date()) {
+  const { fromDate } = getWeekDateRange(inputDate);
+  const weekdays = [];
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  for (let i = 0; i < 5; i++) {
+    const curr = new Date(fromDate);
+    curr.setDate(fromDate.getDate() + i);
+
+    const yearStr = curr.getFullYear();
+    const monthStr = String(curr.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(curr.getDate()).padStart(2, '0');
+
+    weekdays.push({
+      date: new Date(curr),
+      dateStr: `${yearStr}-${monthStr}-${dayStr}`,
+      zohoFormat: `${dayStr}/${monthStr}/${yearStr}`,
+      dayName: dayNames[i]
+    });
+  }
+
+  return weekdays;
+}
+
+/**
+ * Get date range for a pay cycle ending in a given month.
+ * (Retained for backwards compatibility)
+ * @param {number} year 
+ * @param {number} month (1-indexed, target month)
+ * @returns {{ fromDateStr: string, toDateStr: string, fromDate: Date, toDate: Date }}
+ */
+export function getPayCycleDateRange(year, month) {
+  const prevMonthDate = new Date(year, month - 2, 25);
+  const targetMonthDate = new Date(year, month - 1, 23);
+
+  return {
+    fromDateStr: formatDateYMD(prevMonthDate),
+    toDateStr: formatDateYMD(targetMonthDate),
+    fromDate: prevMonthDate,
+    toDate: targetMonthDate
+  };
+}
+
+/**
+ * Get all weekday dates (Mon-Fri) within a pay cycle
+ * (Retained for backwards compatibility)
+ * @param {number} year 
+ * @param {number} month (1-indexed)
+ * @returns {Array<{date: Date, dateStr: string, zohoFormat: string}>}
+ */
+export function getWeekdaysInPayCycle(year, month) {
+  const { fromDate, toDate } = getPayCycleDateRange(year, month);
+  const weekdays = [];
+
+  const curr = new Date(fromDate);
+  while (curr <= toDate) {
+    if (isWeekday(curr)) {
+      const yearStr = curr.getFullYear();
+      const monthStr = String(curr.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(curr.getDate()).padStart(2, '0');
+      weekdays.push({
+        date: new Date(curr),
+        dateStr: `${yearStr}-${monthStr}-${dayStr}`,
+        zohoFormat: `${dayStr}/${monthStr}/${yearStr}`
+      });
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  return weekdays;
+}
+
+/**
+ * Get all weekday dates (Mon-Fri) for a given month's pay cycle
+ * (Retained for backwards compatibility)
  * @param {number} year 
  * @param {number} month (1-indexed)
  * @returns {Array<{date: Date, dateStr: string, zohoFormat: string}>}
  */
 export function getWeekdaysInMonth(year, month) {
-  const weekdays = [];
-  const totalDays = new Date(year, month, 0).getDate();
-
-  for (let day = 1; day <= totalDays; day++) {
-    const d = new Date(year, month - 1, day);
-    if (isWeekday(d)) {
-      const yearStr = d.getFullYear();
-      const monthStr = String(d.getMonth() + 1).padStart(2, '0');
-      const dayStr = String(d.getDate()).padStart(2, '0');
-      weekdays.push({
-        date: d,
-        dateStr: `${yearStr}-${monthStr}-${dayStr}`,
-        zohoFormat: `${dayStr}/${monthStr}/${yearStr}`
-      });
-    }
-  }
-
-  return weekdays;
+  return getWeekdaysInPayCycle(year, month);
 }
 
 /**
@@ -117,20 +192,96 @@ export function formatDateYMD(date = new Date()) {
 }
 
 /**
- * Add random jitter (-jitterMinutes to +jitterMinutes) to current time or given base time "HH:mm"
+ * Add random jitter to base time "HH:mm".
+ * @param {string} baseTimeStr - Base time string "HH:mm"
+ * @param {number} jitterMinutes - Maximum jitter offset in minutes
+ * @param {string} direction - 'earlier' (negative offset: -jitter to 0), 'later' (positive offset: 0 to +jitter), or 'both' (default)
+ * @returns {Date}
  */
-export function applyTimeJitter(baseTimeStr, jitterMinutes = 5) {
+export function applyTimeJitter(baseTimeStr, jitterMinutes = 5, direction = 'both') {
   const [targetHours, targetMins] = baseTimeStr.split(':').map(Number);
   const now = new Date();
   
   now.setHours(targetHours, targetMins, 0, 0);
 
   if (jitterMinutes > 0) {
-    const randomOffsetMs = (Math.random() * (jitterMinutes * 2) - jitterMinutes) * 60 * 1000;
+    let randomOffsetMs = 0;
+    if (direction === 'earlier' || direction === 'negative') {
+      // Negative jitter: strictly between -jitterMinutes and 0 (ensures clock-in is not late & clock-out is early)
+      randomOffsetMs = -Math.random() * jitterMinutes * 60 * 1000;
+    } else if (direction === 'later' || direction === 'positive') {
+      // Positive jitter: strictly between 0 and +jitterMinutes
+      randomOffsetMs = Math.random() * jitterMinutes * 60 * 1000;
+    } else {
+      // Symmetric jitter between -jitterMinutes and +jitterMinutes
+      randomOffsetMs = (Math.random() * (jitterMinutes * 2) - jitterMinutes) * 60 * 1000;
+    }
     now.setTime(now.getTime() + randomOffsetMs);
   }
 
   return now;
+}
+
+/**
+ * Get all Monday-to-Friday week ranges between a start date and an end date
+ * @param {string|Date} startDate 
+ * @param {string|Date} endDate 
+ * @returns {Array<{ fromDateStr: string, toDateStr: string, formattedRange: string, weekdays: Array }>}
+ */
+export function getIntermediateWeeks(startDate, endDate) {
+  const start = typeof startDate === 'string' ? new Date(startDate) : new Date(startDate);
+  const end = typeof endDate === 'string' ? new Date(endDate) : new Date(endDate);
+  
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+
+  const weeks = [];
+  const processedWeeks = new Set();
+
+  let curr = new Date(start);
+  while (curr <= end) {
+    const { fromDateStr, toDateStr, formattedRange, fromDate, toDate } = getWeekDateRange(curr);
+    
+    if (!processedWeeks.has(fromDateStr)) {
+      processedWeeks.add(fromDateStr);
+      const weekdays = getWeekdaysInWeek(fromDate);
+      weeks.push({
+        fromDateStr,
+        toDateStr,
+        formattedRange,
+        fromDate,
+        toDate,
+        weekdays
+      });
+    }
+
+    // Advance to next week
+    curr.setDate(curr.getDate() + 7);
+  }
+
+  return weeks;
+}
+
+/**
+ * Validate that a weekly timesheet contains strictly standard weekly hours (e.g. 5 days * 8h = 40h)
+ * @param {Array} weekdays 
+ * @param {number} dailyHours 
+ * @param {number} actualHoursLogged 
+ * @returns {{ valid: boolean, expectedHours: number, actualHours: number, message: string }}
+ */
+export function validateWeeklyHours(weekdays, dailyHours = 8.0, actualHoursLogged = null) {
+  const expectedHours = weekdays.length * dailyHours;
+  const actual = actualHoursLogged !== null ? actualHoursLogged : expectedHours;
+  const valid = Math.abs(actual - expectedHours) < 0.01;
+
+  return {
+    valid,
+    expectedHours,
+    actualHours: actual,
+    message: valid 
+      ? `Weekly hours valid (${actual} hrs matches expected ${expectedHours} hrs).`
+      : `Weekly hours mismatch: expected ${expectedHours} hrs for ${weekdays.length} days, but got ${actual} hrs!`
+  };
 }
 
 /**
@@ -142,6 +293,9 @@ export function parseArgs() {
     action: null,
     dryRun: false,
     force: false,
+    catchup: false,
+    week: null,
+    date: null,
     month: null,
     hours: null
   };
@@ -154,6 +308,12 @@ export function parseArgs() {
       options.dryRun = true;
     } else if (arg === '--force') {
       options.force = true;
+    } else if (arg === '--catchup') {
+      options.catchup = true;
+    } else if (arg === '--week' && args[i + 1]) {
+      options.week = args[++i];
+    } else if (arg === '--date' && args[i + 1]) {
+      options.date = args[++i];
     } else if (arg === '--month' && args[i + 1]) {
       options.month = args[++i];
     } else if (arg === '--hours' && args[i + 1]) {
@@ -163,3 +323,4 @@ export function parseArgs() {
 
   return options;
 }
+

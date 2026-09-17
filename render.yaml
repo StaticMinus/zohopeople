@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: zoho-people-automation
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: TZ
+        value: Africa/Lagos
+      - key: TIMEZONE
+        value: Africa/Lagos
+      - key: ZOHO_CLIENT_ID
+        sync: false
+      - key: ZOHO_CLIENT_SECRET
+        sync: false
+      - key: ZOHO_REFRESH_TOKEN
+        sync: false
+      - key: ZOHO_ACCOUNTS_URL
+        value: https://accounts.zoho.com
+      - key: ZOHO_PEOPLE_URL
+        value: https://people.zoho.com
+      - key: ZOHO_EMP_ID
+        sync: false
+      - key: ZOHO_EMP_EMAIL
+        sync: false
+      - key: DEFAULT_CHECKIN_TIME
+        value: "09:00"
+      - key: DEFAULT_CHECKOUT_TIME
+        value: "17:00"
+      - key: JITTER_MINUTES
+        value: "5"
+      - key: TIMESHEET_WORK_HOURS
+        value: "8.0"
+      - key: TIMESHEET_PROJECT_ID
+        sync: false
+      - key: TIMESHEET_JOB_NAME
+        value: "Project - RAN"
+      - key: TIMESHEET_BILLABLE_STATUS
+        value: "Non-Billable"
+      - key: CRON_SECRET
+        generateValue: true

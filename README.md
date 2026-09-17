@@ -1,6 +1,6 @@
 # Zoho People Automated Check-in & Timesheet System
 
-An automated, lightweight system to perform **daily check-ins and check-outs (Monday to Friday)** and **process monthly timesheets** for Zoho People.
+An automated, lightweight system to perform **daily check-ins and check-outs (Monday to Friday)** and **process weekly timesheets** for Zoho People.
 
 Supports **100% Free Cloud Automation** via GitHub Actions or free web hosts (Render/Koyeb), as well as local Windows Task Scheduler.
 
@@ -11,7 +11,7 @@ Supports **100% Free Cloud Automation** via GitHub Actions or free web hosts (Re
 - ⏰ **Automated Daily Check-in & Check-out:** Runs automatically on weekdays (Mon-Fri) at your target times.
 - 🎲 **Natural Time Jitter:** Adds a randomized offset (e.g. ±5 mins) to prevent exact-minute artificial timestamps.
 - 📅 **Weekend Guard:** Automatically skips Saturdays and Sundays.
-- 📊 **Monthly Timesheet Processing:** Automatically calculates all working days for the month and submits daily 8-hour entries to Zoho Time Tracker.
+- 📊 **Weekly Timesheet Processing:** Automatically calculates working days for the week (Monday to Friday, 40 hours) and submits daily entries to Zoho Time Tracker every Friday.
 - ☁️ **Free Cloud Automation Ready:** Native GitHub Actions workflow included (0 cost, 0 maintenance).
 - 🔒 **Secure:** Uses official Zoho OAuth 2.0 API tokens (Client ID, Client Secret, Refresh Token).
 
@@ -69,7 +69,7 @@ npm run checkin:dry
 # Test Evening Check-Out (Dry-Run)
 npm run checkout:dry
 
-# Test Monthly Timesheet Generator (Dry-Run)
+# Test Weekly Timesheet Generator (Dry-Run)
 npm run timesheet:dry
 ```
 
@@ -99,21 +99,38 @@ GitHub Actions is **100% Free** (includes 2,000 free build minutes/month for pri
 4. The included `.github/workflows/zoho-automation.yml` will automatically:
    - Run Check-In at 08:55 UTC Mon-Fri
    - Run Check-Out at 17:00 UTC Mon-Fri
-   - Run Monthly Timesheet on the 28th of every month at 18:00 UTC
+   - Run Weekly Timesheet every Friday at 18:00 UTC
    - Provide a manual **"Run workflow"** button in the Actions tab!
 
 ---
 
-### Option B: Free Cloud Hosting (Render / Koyeb + cron-job.org)
+### Option B: Cloud Hosting on Render (24/7 Webhook & Dashboard)
 
-If you prefer hosting an HTTP server endpoint:
-1. Deploy this repository to [Render.com](https://render.com) or [Koyeb.com](https://koyeb.com) (Free Tier).
-2. Set Environment Variables on your dashboard.
-3. Start command: `npm start`
-4. Set up free cron triggers on [cron-job.org](https://cron-job.org) calling:
-   - Check-in: `POST https://your-app.onrender.com/api/checkin?key=YOUR_SECRET`
-   - Check-out: `POST https://your-app.onrender.com/api/checkout?key=YOUR_SECRET`
-   - Timesheet: `POST https://your-app.onrender.com/api/timesheet?key=YOUR_SECRET`
+With `render.yaml` included in this repo, deploying to Render is seamless:
+
+1. **Push your repository to GitHub** (e.g. `https://github.com/StaticMinus/zohopeople`).
+2. **Log into [Render Dashboard](https://dashboard.render.com/)**:
+   - Click **New+** -> **Blueprint** (or **Web Service**).
+   - Connect your `zohopeople` GitHub repository.
+   - Render will detect `render.yaml` and configure the Web Service automatically.
+3. **Configure Environment Variables** on Render:
+   - `ZOHO_CLIENT_ID`
+   - `ZOHO_CLIENT_SECRET`
+   - `ZOHO_REFRESH_TOKEN`
+   - `ZOHO_EMP_ID`
+   - `ZOHO_EMP_EMAIL`
+   - `TIMESHEET_JOB_NAME` (e.g. `Project - RAN`)
+   - `TIMEZONE` / `TZ`: `Africa/Lagos`
+   - `CRON_SECRET`: Render will auto-generate one, or you can supply your own token.
+4. **Reliable Scheduled Triggers (Free Tier Workaround)**:
+   Render Free tier web services spin down after 15 minutes of inactivity. To ensure your jobs run reliably right on time, set up 3 free cron jobs on **[cron-job.org](https://cron-job.org/)**:
+   - **Morning Check-In**: `GET https://your-service.onrender.com/api/cron/checkin?secret=YOUR_CRON_SECRET`
+     - Schedule: Mon–Fri at 08:55 (Timezone: `Africa/Lagos`)
+   - **Evening Check-Out**: `GET https://your-service.onrender.com/api/cron/checkout?secret=YOUR_CRON_SECRET`
+     - Schedule: Mon–Fri at 17:00 (Timezone: `Africa/Lagos`)
+   - **Weekly Timesheet**: `GET https://your-service.onrender.com/api/cron/timesheet?secret=YOUR_CRON_SECRET`
+     - Schedule: Every Friday at 18:00 (Timezone: `Africa/Lagos`)
+   *(Note: Calling these endpoints automatically wakes up Render and executes the job).*
 
 ---
 
@@ -130,7 +147,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-scheduler.ps1
 This creates three scheduled tasks:
 - `ZohoPeople_CheckIn` (Mon-Fri at 08:55)
 - `ZohoPeople_CheckOut` (Mon-Fri at 17:00)
-- `ZohoPeople_MonthlyTimesheet` (Monthly on 28th at 18:00)
+- `ZohoPeople_WeeklyTimesheet` (Weekly on Friday at 18:00)
 
 ---
 
@@ -138,5 +155,6 @@ This creates three scheduled tasks:
 
 All execution logs are recorded in the `logs/` directory:
 - `logs/attendance.log` - History of all check-in and check-out executions
-- `logs/timesheet.log` - History of monthly timesheet submissions
+- `logs/timesheet.log` - History of weekly timesheet submissions
 - `logs/error.log` - Diagnostic logs for failed requests
+

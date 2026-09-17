@@ -1,7 +1,7 @@
 {
   "name": "zoho-people-automation",
   "version": "1.0.0",
-  "description": "Automated check-in/check-out and monthly timesheet processing for Zoho People",
+  "description": "Automated check-in/check-out and weekly timesheet processing for Zoho People",
   "main": "src/checkin.js",
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "checkin:dry": "node src/checkin.js --action checkin --dry-run",
     "checkout:dry": "node src/checkin.js --action checkout --dry-run",
     "timesheet": "node src/timesheet.js",
-    "timesheet:dry": "node src/timesheet.js --dry-run"
+    "timesheet:dry": "node src/timesheet.js --dry-run",
+    "timesheet:catchup": "node src/timesheet.js --catchup"
   },
   "keywords": [
     "zoho",
@@ -26,6 +27,7 @@
   "dependencies": {
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "node-cron": "^4.6.0"
   }
 }

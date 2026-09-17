@@ -29,13 +29,13 @@ Options:
     process.exit(0);
   }
 
-  // Calculate target time with jitter
+  // Calculate target time with jitter (direction = 'earlier' ensures clock-in is not late and clock-out is early)
   const baseTimeStr = action === 'checkin' ? config.defaultCheckInTime : config.defaultCheckOutTime;
-  const targetTimestamp = applyTimeJitter(baseTimeStr, config.jitterMinutes);
+  const targetTimestamp = applyTimeJitter(baseTimeStr, config.jitterMinutes, 'earlier');
   const formattedTime = formatZohoAttendanceDate(targetTimestamp);
 
   log(`Action: ${action.toUpperCase()}`);
-  log(`Base Schedule Time: ${baseTimeStr} (Jitter range: ±${config.jitterMinutes} mins)`);
+  log(`Base Schedule Time: ${baseTimeStr} (Jitter range: -${config.jitterMinutes} to 0 mins [${action === 'checkin' ? 'Not Late' : 'Early'}])`);
   log(`Effective Timestamp: ${formattedTime}`);
 
   if (args.dryRun) {
