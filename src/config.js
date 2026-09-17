@@ -33,7 +33,12 @@ export const config = {
 
   // Cloud / Cron settings
   timezone: process.env.TIMEZONE || process.env.TZ || 'Africa/Lagos',
-  cronSecret: process.env.CRON_SECRET || ''
+  cronSecret: process.env.CRON_SECRET || '',
+
+  // Geolocation settings (Defaults to Enugu, Nigeria)
+  attendanceLatitude: parseFloat(process.env.ATTENDANCE_LATITUDE || '6.4527'),
+  attendanceLongitude: parseFloat(process.env.ATTENDANCE_LONGITUDE || '7.5103'),
+  attendanceLocation: process.env.ATTENDANCE_LOCATION || 'Enugu, Nigeria'
 };
 
 /**

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config, validateApiConfig } from './config.js';
-import { log, formatZohoAttendanceDate } from './utils.js';
+import { log, formatZohoAttendanceDate, applyLocationJitter } from './utils.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -112,8 +112,17 @@ export async function recordCheckIn(timestamp = new Date(), options = {}) {
   if (config.empId) params.empId = config.empId;
   if (config.empEmail) params.emailId = config.empEmail;
 
-  if (options.latitude) params.latitude = options.latitude;
-  if (options.longitude) params.longitude = options.longitude;
+  const baseLat = options.latitude ?? config.attendanceLatitude;
+  const baseLon = options.longitude ?? config.attendanceLongitude;
+  const locName = options.location || config.attendanceLocation || 'Enugu, Nigeria';
+
+  if (baseLat && baseLon) {
+    const coords = applyLocationJitter(Number(baseLat), Number(baseLon), 150);
+    params.latitude = coords.latitude;
+    params.longitude = coords.longitude;
+    params.location = locName;
+    log(`Location tagged: ${locName} (${coords.latitude}, ${coords.longitude})`);
+  }
 
   try {
     const response = await axios.post(`${config.peopleUrl}/people/api/attendance`, null, {
@@ -151,8 +160,17 @@ export async function recordCheckOut(timestamp = new Date(), options = {}) {
   if (config.empId) params.empId = config.empId;
   if (config.empEmail) params.emailId = config.empEmail;
 
-  if (options.latitude) params.latitude = options.latitude;
-  if (options.longitude) params.longitude = options.longitude;
+  const baseLat = options.latitude ?? config.attendanceLatitude;
+  const baseLon = options.longitude ?? config.attendanceLongitude;
+  const locName = options.location || config.attendanceLocation || 'Enugu, Nigeria';
+
+  if (baseLat && baseLon) {
+    const coords = applyLocationJitter(Number(baseLat), Number(baseLon), 150);
+    params.latitude = coords.latitude;
+    params.longitude = coords.longitude;
+    params.location = locName;
+    log(`Location tagged: ${locName} (${coords.latitude}, ${coords.longitude})`);
+  }
 
   try {
     const response = await axios.post(`${config.peopleUrl}/people/api/attendance`, null, {

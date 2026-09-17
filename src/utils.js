@@ -223,6 +223,24 @@ export function applyTimeJitter(baseTimeStr, jitterMinutes = 5, direction = 'bot
 }
 
 /**
+ * Add small random micro-jitter (in meters) to coordinates so punches look like realistic mobile GPS
+ * @param {number} baseLat 
+ * @param {number} baseLon 
+ * @param {number} maxJitterMeters 
+ * @returns {{ latitude: string, longitude: string }}
+ */
+export function applyLocationJitter(baseLat, baseLon, maxJitterMeters = 150) {
+  const deltaY = (Math.random() - 0.5) * 2 * maxJitterMeters;
+  const deltaX = (Math.random() - 0.5) * 2 * maxJitterMeters;
+  const latOffset = deltaY / 111320;
+  const lonOffset = deltaX / (111320 * Math.cos((baseLat * Math.PI) / 180));
+  return {
+    latitude: (baseLat + latOffset).toFixed(6),
+    longitude: (baseLon + lonOffset).toFixed(6)
+  };
+}
+
+/**
  * Get all Monday-to-Friday week ranges between a start date and an end date
  * @param {string|Date} startDate 
  * @param {string|Date} endDate 

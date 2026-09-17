@@ -43,3 +43,9 @@ services:
         value: "Non-Billable"
       - key: CRON_SECRET
         generateValue: true
+      - key: ATTENDANCE_LATITUDE
+        value: "6.4527"
+      - key: ATTENDANCE_LONGITUDE
+        value: "7.5103"
+      - key: ATTENDANCE_LOCATION
+        value: "Enugu, Nigeria"
