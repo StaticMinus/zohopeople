@@ -161,10 +161,11 @@ app.all('/api/cron/timesheet-catchup', cronAuth, async (req, res) => {
 
     let weeksToProcess = [];
     if (latestCoveredDate) {
-      const nextDay = new Date(latestCoveredDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      if (nextDay < currentWeek.fromDate) {
-        weeksToProcess = getIntermediateWeeks(nextDay, currentWeek.toDate);
+      const lastCoveredWeek = getWeekDateRange(latestCoveredDate);
+      const firstMissingMonday = new Date(lastCoveredWeek.fromDate);
+      firstMissingMonday.setDate(firstMissingMonday.getDate() + 7);
+      if (firstMissingMonday <= currentWeek.fromDate) {
+        weeksToProcess = getIntermediateWeeks(firstMissingMonday, currentWeek.toDate);
       } else {
         weeksToProcess = [{ ...currentWeek, weekdays: getWeekdaysInWeek(now) }];
       }
@@ -240,10 +241,11 @@ app.get('/api/timesheet/status', async (req, res) => {
 
     let detectedGaps = [];
     if (latestCoveredDate) {
-      const nextDay = new Date(latestCoveredDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      if (nextDay < currentWeek.fromDate) {
-        detectedGaps = getIntermediateWeeks(nextDay, currentWeek.toDate);
+      const lastCoveredWeek = getWeekDateRange(latestCoveredDate);
+      const firstMissingMonday = new Date(lastCoveredWeek.fromDate);
+      firstMissingMonday.setDate(firstMissingMonday.getDate() + 7);
+      if (firstMissingMonday <= currentWeek.fromDate) {
+        detectedGaps = getIntermediateWeeks(firstMissingMonday, currentWeek.toDate);
       }
     }
 
@@ -363,10 +365,11 @@ app.post('/api/timesheet/catchup', async (req, res) => {
 
     let weeksToProcess = [];
     if (latestCoveredDate) {
-      const nextDay = new Date(latestCoveredDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      if (nextDay < currentWeek.fromDate) {
-        weeksToProcess = getIntermediateWeeks(nextDay, currentWeek.toDate);
+      const lastCoveredWeek = getWeekDateRange(latestCoveredDate);
+      const firstMissingMonday = new Date(lastCoveredWeek.fromDate);
+      firstMissingMonday.setDate(firstMissingMonday.getDate() + 7);
+      if (firstMissingMonday <= currentWeek.fromDate) {
+        weeksToProcess = getIntermediateWeeks(firstMissingMonday, currentWeek.toDate);
       } else {
         weeksToProcess = [{ ...currentWeek, weekdays: getWeekdaysInWeek(now) }];
       }

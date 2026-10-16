@@ -1,0 +1,62 @@
+name: Zoho People Check-In
+
+on:
+  schedule:
+    # Mon-Fri at 07:55 UTC (08:55 AM Africa/Lagos)
+    - cron: '55 7 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry Run (Simulate only)'
+        required: false
+        default: false
+        type: boolean
+      force:
+        description: 'Force execution (override weekend check)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Execute Check-In
+        env:
+          ZOHO_CLIENT_ID: ${{ secrets.ZOHO_CLIENT_ID }}
+          ZOHO_CLIENT_SECRET: ${{ secrets.ZOHO_CLIENT_SECRET }}
+          ZOHO_REFRESH_TOKEN: ${{ secrets.ZOHO_REFRESH_TOKEN }}
+          ZOHO_ACCOUNTS_URL: ${{ secrets.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com' }}
+          ZOHO_PEOPLE_URL: ${{ secrets.ZOHO_PEOPLE_URL || 'https://people.zoho.com' }}
+          ZOHO_EMP_ID: ${{ secrets.ZOHO_EMP_ID }}
+          ZOHO_EMP_EMAIL: ${{ secrets.ZOHO_EMP_EMAIL }}
+          DEFAULT_CHECKIN_TIME: ${{ secrets.DEFAULT_CHECKIN_TIME || '09:00' }}
+          DEFAULT_CHECKOUT_TIME: ${{ secrets.DEFAULT_CHECKOUT_TIME || '17:00' }}
+          JITTER_MINUTES: ${{ secrets.JITTER_MINUTES || '5' }}
+          ATTENDANCE_LATITUDE: ${{ secrets.ATTENDANCE_LATITUDE || '6.4527' }}
+          ATTENDANCE_LONGITUDE: ${{ secrets.ATTENDANCE_LONGITUDE || '7.5103' }}
+          ATTENDANCE_LOCATION: ${{ secrets.ATTENDANCE_LOCATION || 'Enugu, Nigeria' }}
+          TIMEZONE: Africa/Lagos
+          TZ: Africa/Lagos
+        run: |
+          ARGS="--action checkin"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ "${{ inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          node src/checkin.js $ARGS

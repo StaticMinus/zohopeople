@@ -157,13 +157,13 @@ async function main() {
     if (latestCoveredDate) {
       log(`Latest approved/submitted timesheet in Zoho covers up to: ${latestCoveredDate}`);
       
-      // Calculate start date for unsubmitted gap (day after latestCoveredDate)
-      const nextDay = new Date(latestCoveredDate);
-      nextDay.setDate(nextDay.getDate() + 1);
+      const lastCoveredWeek = getWeekDateRange(latestCoveredDate);
+      const firstMissingMonday = new Date(lastCoveredWeek.fromDate);
+      firstMissingMonday.setDate(firstMissingMonday.getDate() + 7);
 
-      if (nextDay < currentWeek.fromDate) {
-        log(`[GAP DETECTED] Unsubmitted period detected from ${formatDateYMD(nextDay)} to ${currentWeek.fromDateStr}!`);
-        const missingWeeks = getIntermediateWeeks(nextDay, currentWeek.toDate);
+      if (firstMissingMonday <= currentWeek.fromDate) {
+        log(`[GAP DETECTED] Unsubmitted period detected from ${formatDateYMD(firstMissingMonday)} to ${currentWeek.toDateStr}!`);
+        const missingWeeks = getIntermediateWeeks(firstMissingMonday, currentWeek.toDate);
         weeksToProcess = missingWeeks;
       } else {
         weeksToProcess = [currentWeekInfo];

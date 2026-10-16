@@ -1,0 +1,68 @@
+name: Zoho People Weekly Timesheet
+
+on:
+  schedule:
+    # Every Friday at 17:00 UTC (18:00 / 6:00 PM Africa/Lagos)
+    - cron: '0 17 * * 5'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry Run (Simulate only)'
+        required: false
+        default: false
+        type: boolean
+      force:
+        description: 'Force re-submission of pending/approved timesheets'
+        required: false
+        default: false
+        type: boolean
+      catchup:
+        description: 'Run catch-up for unsubmitted backlog weeks'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  timesheet:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Execute Weekly Timesheet Processing
+        env:
+          ZOHO_CLIENT_ID: ${{ secrets.ZOHO_CLIENT_ID }}
+          ZOHO_CLIENT_SECRET: ${{ secrets.ZOHO_CLIENT_SECRET }}
+          ZOHO_REFRESH_TOKEN: ${{ secrets.ZOHO_REFRESH_TOKEN }}
+          ZOHO_ACCOUNTS_URL: ${{ secrets.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com' }}
+          ZOHO_PEOPLE_URL: ${{ secrets.ZOHO_PEOPLE_URL || 'https://people.zoho.com' }}
+          ZOHO_EMP_ID: ${{ secrets.ZOHO_EMP_ID }}
+          ZOHO_EMP_EMAIL: ${{ secrets.ZOHO_EMP_EMAIL }}
+          TIMESHEET_WORK_HOURS: ${{ secrets.TIMESHEET_WORK_HOURS || '8.0' }}
+          TIMESHEET_PROJECT_ID: ${{ secrets.TIMESHEET_PROJECT_ID || '848867000000502035' }}
+          TIMESHEET_JOB_NAME: ${{ secrets.TIMESHEET_JOB_NAME || 'Project - RAN' }}
+          TIMESHEET_BILLABLE_STATUS: ${{ secrets.TIMESHEET_BILLABLE_STATUS || 'Non-Billable' }}
+          TIMEZONE: Africa/Lagos
+          TZ: Africa/Lagos
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ "${{ inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          if [ "${{ inputs.catchup }}" = "true" ]; then
+            ARGS="$ARGS --catchup"
+          fi
+          node src/timesheet.js $ARGS

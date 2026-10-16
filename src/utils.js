@@ -250,30 +250,31 @@ export function getIntermediateWeeks(startDate, endDate) {
   const start = typeof startDate === 'string' ? new Date(startDate) : new Date(startDate);
   const end = typeof endDate === 'string' ? new Date(endDate) : new Date(endDate);
   
-  start.setHours(0, 0, 0, 0);
-  end.setHours(23, 59, 59, 999);
+  // Snap start to Monday of that week
+  const startMonday = new Date(getWeekDateRange(start).fromDate);
+  startMonday.setHours(0, 0, 0, 0);
+
+  // Snap end to Friday of that week
+  const endFriday = new Date(getWeekDateRange(end).toDate);
+  endFriday.setHours(23, 59, 59, 999);
 
   const weeks = [];
   const processedWeeks = new Set();
 
-  let curr = new Date(start);
-  while (curr <= end) {
-    const { fromDateStr, toDateStr, formattedRange, fromDate, toDate } = getWeekDateRange(curr);
+  let curr = new Date(startMonday);
+  while (curr <= endFriday) {
+    const weekRange = getWeekDateRange(curr);
     
-    if (!processedWeeks.has(fromDateStr)) {
-      processedWeeks.add(fromDateStr);
-      const weekdays = getWeekdaysInWeek(fromDate);
+    if (!processedWeeks.has(weekRange.fromDateStr)) {
+      processedWeeks.add(weekRange.fromDateStr);
+      const weekdays = getWeekdaysInWeek(curr);
       weeks.push({
-        fromDateStr,
-        toDateStr,
-        formattedRange,
-        fromDate,
-        toDate,
+        ...weekRange,
         weekdays
       });
     }
 
-    // Advance to next week
+    // Advance to next Monday
     curr.setDate(curr.getDate() + 7);
   }
 
