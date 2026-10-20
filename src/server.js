@@ -15,6 +15,7 @@ import {
 import { 
   log, 
   isWeekday, 
+  isTimesheetSubmissionDay,
   applyTimeJitter, 
   getWeekDateRange, 
   getWeekdaysInWeek,
@@ -117,6 +118,13 @@ app.all('/api/cron/timesheet', cronAuth, async (req, res) => {
   const force = req.query.force === 'true' || req.body?.force;
   const dryRun = req.query.dryRun === 'true' || req.body?.dryRun;
 
+  if (!isTimesheetSubmissionDay(now) && !force) {
+    return res.json({ 
+      status: 'skipped', 
+      message: `Today is ${now.toLocaleDateString('en-US', { weekday: 'long' })}. Timesheets are strictly submitted on Fridays after all workdays have completed.` 
+    });
+  }
+
   const currentWeek = getWeekDateRange(now);
   const weekInfo = {
     ...currentWeek,
@@ -140,11 +148,13 @@ app.all('/api/cron/timesheet', cronAuth, async (req, res) => {
 // External Cron Webhook: Timesheet Catch-up & Backfill
 app.all('/api/cron/timesheet-catchup', cronAuth, async (req, res) => {
   const now = new Date();
+  const force = req.query.force === 'true' || req.body?.force;
   const lookbackDate = new Date(now);
   lookbackDate.setDate(lookbackDate.getDate() - 60);
 
   const dailyHours = config.timesheetWorkHours || 8.0;
   const currentWeek = getWeekDateRange(now);
+  const isFriday = isTimesheetSubmissionDay(now);
 
   try {
     const recentSheets = await getTimesheets(formatDateYMD(lookbackDate), formatDateYMD(now));
@@ -164,13 +174,27 @@ app.all('/api/cron/timesheet-catchup', cronAuth, async (req, res) => {
       const lastCoveredWeek = getWeekDateRange(latestCoveredDate);
       const firstMissingMonday = new Date(lastCoveredWeek.fromDate);
       firstMissingMonday.setDate(firstMissingMonday.getDate() + 7);
-      if (firstMissingMonday <= currentWeek.fromDate) {
-        weeksToProcess = getIntermediateWeeks(firstMissingMonday, currentWeek.toDate);
-      } else {
+      
+      // Only process past completed weeks before Friday
+      if (firstMissingMonday < currentWeek.fromDate) {
+        const lastCompletedFriday = new Date(currentWeek.fromDate);
+        lastCompletedFriday.setDate(lastCompletedFriday.getDate() - 3);
+        weeksToProcess = getIntermediateWeeks(firstMissingMonday, lastCompletedFriday);
+      } else if (isFriday || force) {
         weeksToProcess = [{ ...currentWeek, weekdays: getWeekdaysInWeek(now) }];
+      } else {
+        return res.json({ 
+          status: 'skipped', 
+          message: 'No past backlog weeks found. Current week is in progress and can only be submitted on Friday.' 
+        });
       }
-    } else {
+    } else if (isFriday || force) {
       weeksToProcess = [{ ...currentWeek, weekdays: getWeekdaysInWeek(now) }];
+    } else {
+      return res.json({ 
+        status: 'skipped', 
+        message: 'No past backlog weeks found. Current week is in progress and can only be submitted on Friday.' 
+      });
     }
 
     const results = [];
@@ -178,7 +202,7 @@ app.all('/api/cron/timesheet-catchup', cronAuth, async (req, res) => {
       const resWeek = await processWeeklyTimesheet(week, {
         hours: dailyHours,
         dryRun: req.query.dryRun === 'true',
-        force: req.query.force === 'true'
+        force: force
       });
       results.push(resWeek);
     }

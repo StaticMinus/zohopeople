@@ -8,6 +8,7 @@ import {
 } from './zohoApi.js';
 import { 
   log, 
+  isTimesheetSubmissionDay,
   getWeekDateRange, 
   getWeekdaysInWeek, 
   getIntermediateWeeks,
@@ -27,6 +28,14 @@ export async function processWeeklyTimesheet({ fromDateStr, toDateStr, formatted
   log(`\n========================================================================`, 'timesheet.log');
   log(`--- Processing Weekly Timesheet: ${formattedRange} (${fromDateStr} to ${toDateStr}) ---`, 'timesheet.log');
   log(`Expected: ${weekdays.length} weekdays (Mon-Fri) @ ${dailyHours} hrs/day = ${expectedTotalHours.toFixed(1)} hrs total`, 'timesheet.log');
+
+  // Hard guard: Never log hours or submit timesheets for future dates
+  const todayStr = formatDateYMD(new Date());
+  const hasFutureDays = weekdays.some(w => w.dateStr > todayStr);
+  if (hasFutureDays && !options.force) {
+    log(`[BLOCKED] Week ${formattedRange} contains dates in the future (today is ${todayStr}). Cannot log hours or submit timesheet before days are worked. Skipping.`, 'timesheet.log');
+    return { success: false, skipped: true, reason: 'future_dates_not_allowed' };
+  }
 
   if (options.dryRun) {
     log(`[DRY RUN] Simulating timesheet processing for week ${formattedRange}:`);
@@ -111,6 +120,7 @@ export async function processWeeklyTimesheet({ fromDateStr, toDateStr, formatted
 async function main() {
   const args = parseArgs();
   const now = new Date();
+  const isFriday = isTimesheetSubmissionDay(now);
 
   // Determine Target Date
   let targetDate = now;
@@ -119,22 +129,23 @@ async function main() {
     targetDate = new Date(rawDateStr);
   }
 
-  const currentWeek = getWeekDateRange(targetDate);
-  const currentWeekInfo = {
-    ...currentWeek,
-    weekdays: getWeekdaysInWeek(targetDate)
-  };
-
+  const currentWeek = getWeekDateRange(now);
   const dailyHours = args.hours || config.timesheetWorkHours || 8.0;
 
   log(`=== Zoho People Intelligent Timesheet Engine Starting ===`, 'timesheet.log');
+  log(`Current Date: ${now.toDateString()} (${now.toLocaleDateString('en-US', { weekday: 'long' })}) (Timezone: ${config.timezone})`, 'timesheet.log');
 
-  // Check for any unsubmitted backlog weeks (Catch-up Intelligence)
-  // Look back up to 45 days to find the latest covered timesheet date
-  const lookbackDate = new Date(targetDate);
+  // Hard rule: Timesheets are ONLY submitted on Friday
+  if (!isFriday && !args.force && !rawDateStr && !args.catchup) {
+    log(`[SCHEDULE GUARD] Today is ${now.toLocaleDateString('en-US', { weekday: 'long' })}. Timesheets are ONLY submitted on Fridays after all workdays are completed. Skipping.`, 'timesheet.log');
+    process.exit(0);
+  }
+
+  // Check for any unsubmitted backlog weeks (Past completed weeks only!)
+  const lookbackDate = new Date(now);
   lookbackDate.setDate(lookbackDate.getDate() - 45);
   const lookbackStr = formatDateYMD(lookbackDate);
-  const targetStr = formatDateYMD(targetDate);
+  const targetStr = formatDateYMD(now);
 
   let weeksToProcess = [];
 
@@ -161,24 +172,45 @@ async function main() {
       const firstMissingMonday = new Date(lastCoveredWeek.fromDate);
       firstMissingMonday.setDate(firstMissingMonday.getDate() + 7);
 
-      if (firstMissingMonday <= currentWeek.fromDate) {
-        log(`[GAP DETECTED] Unsubmitted period detected from ${formatDateYMD(firstMissingMonday)} to ${currentWeek.toDateStr}!`);
-        const missingWeeks = getIntermediateWeeks(firstMissingMonday, currentWeek.toDate);
+      // Only past completed weeks can be processed before Friday
+      if (firstMissingMonday < currentWeek.fromDate) {
+        const lastCompletedFriday = new Date(currentWeek.fromDate);
+        lastCompletedFriday.setDate(lastCompletedFriday.getDate() - 3); // Previous week's Friday
+        log(`[GAP DETECTED] Unsubmitted past period detected from ${formatDateYMD(firstMissingMonday)} to ${formatDateYMD(lastCompletedFriday)}!`);
+        const missingWeeks = getIntermediateWeeks(firstMissingMonday, lastCompletedFriday);
         weeksToProcess = missingWeeks;
+      } else if (isFriday) {
+        // Today is Friday! We can process the current completed week
+        weeksToProcess = [{ ...currentWeek, weekdays: getWeekdaysInWeek(now) }];
       } else {
-        weeksToProcess = [currentWeekInfo];
+        log(`[INFO] No past backlog weeks found. Current week (${currentWeek.formattedRange}) is in progress and will only be submitted on Friday. Skipping.`, 'timesheet.log');
+        process.exit(0);
       }
+    } else if (isFriday) {
+      weeksToProcess = [{ ...currentWeek, weekdays: getWeekdaysInWeek(now) }];
     } else {
-      weeksToProcess = [currentWeekInfo];
+      log(`[INFO] Current week (${currentWeek.formattedRange}) is in progress and will only be submitted on Friday. Skipping.`, 'timesheet.log');
+      process.exit(0);
     }
   } catch (err) {
-    log(`[NOTE] Could not query past timesheet history (${err.message}). Defaulting to target week.`, 'timesheet.log');
-    weeksToProcess = [currentWeekInfo];
+    log(`[NOTE] Could not query past timesheet history (${err.message}).`, 'timesheet.log');
+    if (isFriday) {
+      weeksToProcess = [{ ...currentWeek, weekdays: getWeekdaysInWeek(now) }];
+    } else {
+      log(`Today is not Friday. Skipping.`, 'timesheet.log');
+      process.exit(0);
+    }
   }
 
   // If specific date/week was forced via CLI, process only that week
-  if (rawDateStr && !args.catchup) {
-    weeksToProcess = [currentWeekInfo];
+  if (rawDateStr) {
+    const specifiedWeek = getWeekDateRange(targetDate);
+    weeksToProcess = [{ ...specifiedWeek, weekdays: getWeekdaysInWeek(targetDate) }];
+  }
+
+  if (weeksToProcess.length === 0) {
+    log(`No weeks to process. Exiting.`, 'timesheet.log');
+    process.exit(0);
   }
 
   log(`\nProcessing ${weeksToProcess.length} week(s) in sequence:`);
@@ -186,15 +218,18 @@ async function main() {
     log(` [${idx + 1}/${weeksToProcess.length}] ${w.formattedRange} (${w.fromDateStr} to ${w.toDateStr})`);
   });
 
-  // Process all designated weeks sequentially
+  // Process designated weeks sequentially
   let allSuccess = true;
   for (const week of weeksToProcess) {
     try {
-      await processWeeklyTimesheet(week, {
+      const res = await processWeeklyTimesheet(week, {
         hours: dailyHours,
         dryRun: args.dryRun,
         force: args.force
       });
+      if (!res.success && !res.skipped) {
+        allSuccess = false;
+      }
     } catch (err) {
       allSuccess = false;
       log(`[ERROR] Failed processing week ${week.formattedRange}: ${err.message}`, 'error.log');
