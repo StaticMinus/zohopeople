@@ -1,5 +1,5 @@
 import { config } from './config.js';
-import { recordCheckIn, recordCheckOut } from './zohoApi.js';
+import { recordCheckIn, recordCheckOut, getTodayAttendanceStatus } from './zohoApi.js';
 import { log, isWeekday, applyTimeJitter, parseArgs, formatZohoAttendanceDate } from './utils.js';
 
 async function main() {
@@ -27,6 +27,23 @@ Options:
     const currentDay = dayNames[now.getDay()];
     log(`Weekend detected (${currentDay}). Skipping automatic ${action}. Use --force to override.`, 'attendance.log');
     process.exit(0);
+  }
+
+  // Idempotency check: Skip if already performed today (unless --force is specified)
+  if (!args.force && !args.dryRun) {
+    try {
+      const status = await getTodayAttendanceStatus(now);
+      if (action === 'checkin' && status.checkedIn) {
+        log(`[ALREADY RECORDED] Check-in for today (${status.date}) is already recorded at ${status.firstIn}. Skipping.`, 'attendance.log');
+        process.exit(0);
+      }
+      if (action === 'checkout' && status.checkedOut) {
+        log(`[ALREADY RECORDED] Check-out for today (${status.date}) is already recorded at ${status.lastOut}. Skipping.`, 'attendance.log');
+        process.exit(0);
+      }
+    } catch (e) {
+      log(`Note: Attendance pre-check could not be completed (${e.message}), proceeding...`);
+    }
   }
 
   // Calculate target time with jitter (direction = 'earlier' ensures clock-in is not late and clock-out is early)

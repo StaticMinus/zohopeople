@@ -2,8 +2,11 @@ name: Zoho People Weekly Timesheet
 
 on:
   schedule:
-    # Every Friday at 17:00 UTC (18:00 / 6:00 PM Africa/Lagos)
-    - cron: '0 17 * * 5'
+    # Every Friday at off-peak minutes to avoid GitHub Actions global queue congestion
+    # 16:42 UTC = 17:42 / 5:42 PM Africa/Lagos (Primary off-peak trigger)
+    - cron: '42 16 * * 5'
+    # 17:12 UTC = 18:12 / 6:12 PM Africa/Lagos (Backup trigger)
+    - cron: '12 17 * * 5'
   workflow_dispatch:
     inputs:
       dry_run:

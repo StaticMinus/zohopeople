@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config, validateApiConfig } from './config.js';
-import { log, formatZohoAttendanceDate, applyLocationJitter } from './utils.js';
+import { log, formatZohoAttendanceDate, applyLocationJitter, formatDateYMD } from './utils.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -211,6 +211,53 @@ export async function getAttendanceEntries(dateStr) {
   } catch (err) {
     log(`Error fetching attendance entries: ${err.message}`, 'error.log');
     throw err;
+  }
+}
+
+/**
+ * Fetch today's attendance status for the employee from Zoho People report.
+ * Returns { date: string, checkedIn: boolean, checkedOut: boolean, firstIn: string|null, lastOut: string|null, status: string }
+ */
+export async function getTodayAttendanceStatus(targetDate = new Date()) {
+  const accessToken = await getAccessToken();
+  const dateStr = formatDateYMD(targetDate);
+  try {
+    const response = await axios.get(`${config.peopleUrl}/people/api/attendance/getUserReport`, {
+      params: {
+        sdate: dateStr,
+        edate: dateStr,
+        dateFormat: 'yyyy-MM-dd',
+        empId: config.empId,
+        emailId: config.empEmail
+      },
+      headers: {
+        Authorization: `Zoho-oauthtoken ${accessToken}`
+      }
+    });
+
+    const dayData = response.data?.[dateStr];
+    const checkedIn = Boolean(dayData?.FirstIn && dayData.FirstIn !== '-');
+    const checkedOut = Boolean(dayData?.LastOut && dayData.LastOut !== '-');
+
+    return {
+      date: dateStr,
+      checkedIn,
+      checkedOut,
+      firstIn: dayData?.FirstIn || null,
+      lastOut: dayData?.LastOut || null,
+      status: dayData?.Status || ''
+    };
+  } catch (err) {
+    const errObj = err.response?.data || err.message;
+    log(`Warning: Failed to fetch attendance status: ${JSON.stringify(errObj)}`, 'error.log');
+    return {
+      date: dateStr,
+      checkedIn: false,
+      checkedOut: false,
+      firstIn: null,
+      lastOut: null,
+      status: ''
+    };
   }
 }
 

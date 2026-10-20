@@ -2,8 +2,13 @@ name: Zoho People Check-Out
 
 on:
   schedule:
-    # Mon-Fri at 16:00 UTC (17:00 / 5:00 PM Africa/Lagos)
-    - cron: '0 16 * * 1-5'
+    # Mon-Fri at off-peak minutes to avoid GitHub Actions global queue congestion
+    # 15:48 UTC = 16:48 PM Africa/Lagos (Primary off-peak trigger)
+    - cron: '48 15 * * 1-5'
+    # 16:04 UTC = 17:04 PM Africa/Lagos (Backup trigger)
+    - cron: '4 16 * * 1-5'
+    # 16:18 UTC = 17:18 PM Africa/Lagos (Safety net trigger)
+    - cron: '18 16 * * 1-5'
   workflow_dispatch:
     inputs:
       dry_run:
