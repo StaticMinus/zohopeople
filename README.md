@@ -84,23 +84,43 @@ npm run timesheet
 
 ## Automation Setup Options
 
-### Option A: Free GitHub Actions (Recommended)
+### Option A: Free Cloud Automation via GitHub Actions (External Dispatch Recommended)
 
-GitHub Actions is **100% Free** (includes 2,000 free build minutes/month for private repositories; this system uses ~15 mins/month).
+> [!NOTE]
+> GitHub Actions' built-in `schedule` cron can suffer from hours of queue delay on shared public runners.
+> For **instant, zero-delay on-time execution** at 08:55 AM and 05:00 PM, use an external free scheduler (like [cron-job.org](https://cron-job.org)) to trigger the workflows via GitHub's `repository_dispatch` API (executes within 5–10 seconds!).
 
-1. Push this repository to a **Private GitHub Repository**.
-2. Go to **Settings** -> **Secrets and variables** -> **Actions**.
-3. Add the following Repository Secrets:
-   - `ZOHO_CLIENT_ID`
-   - `ZOHO_CLIENT_SECRET`
-   - `ZOHO_REFRESH_TOKEN`
-   - `ZOHO_EMP_ID`
-   - `ZOHO_EMP_EMAIL`
-4. The included `.github/workflows/zoho-automation.yml` will automatically:
-   - Run Check-In at 08:55 UTC Mon-Fri
-   - Run Check-Out at 17:00 UTC Mon-Fri
-   - Run Weekly Timesheet every Friday at 18:00 UTC
-   - Provide a manual **"Run workflow"** button in the Actions tab!
+#### 1. Repository Secrets
+Ensure your repository has the following secrets in **Settings** -> **Secrets and variables** -> **Actions**:
+- `ZOHO_CLIENT_ID`
+- `ZOHO_CLIENT_SECRET`
+- `ZOHO_REFRESH_TOKEN`
+- `ZOHO_EMP_ID`
+- `ZOHO_EMP_EMAIL`
+
+#### 2. Create a GitHub Personal Access Token (PAT)
+1. Go to [GitHub Settings -> Developer Settings -> Personal access tokens](https://github.com/settings/tokens).
+2. Generate a Fine-grained or Classic Token (`repo` scope).
+3. Copy the token.
+
+#### 3. Configure 3 Free Cron Jobs on cron-job.org
+Set up 3 free jobs on **[cron-job.org](https://cron-job.org/)**:
+- **Common Settings**:
+  - Request Method: `POST`
+  - URL: `https://api.github.com/repos/StaticMinus/zohopeople/dispatches`
+  - Headers:
+    - `Accept: application/vnd.github+json`
+    - `Authorization: Bearer YOUR_GITHUB_PAT`
+    - `User-Agent: cron-job`
+- **Job 1: Morning Check-In**
+  - Body: `{"event_type": "checkin"}`
+  - Schedule: Mon–Fri at `08:55` (Timezone: `Africa/Lagos`)
+- **Job 2: Evening Check-Out**
+  - Body: `{"event_type": "checkout"}`
+  - Schedule: Mon–Fri at `17:00` (Timezone: `Africa/Lagos`)
+- **Job 3: Weekly Timesheet Submission**
+  - Body: `{"event_type": "timesheet"}`
+  - Schedule: Every Friday at `18:00` (Timezone: `Africa/Lagos`)
 
 ---
 
