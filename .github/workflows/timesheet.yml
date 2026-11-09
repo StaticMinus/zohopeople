@@ -1,12 +1,8 @@
 name: Zoho People Weekly Timesheet
 
 on:
-  schedule:
-    # Every Friday at off-peak minutes to avoid GitHub Actions global queue congestion
-    # 16:42 UTC = 17:42 / 5:42 PM Africa/Lagos (Primary off-peak trigger)
-    - cron: '42 16 * * 5'
-    # 17:12 UTC = 18:12 / 6:12 PM Africa/Lagos (Backup trigger)
-    - cron: '12 17 * * 5'
+  repository_dispatch:
+    types: [timesheet]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -24,6 +20,12 @@ on:
         required: false
         default: true
         type: boolean
+  schedule:
+    # Every Friday at off-peak minutes to avoid GitHub Actions global queue congestion
+    # 16:42 UTC = 17:42 / 5:42 PM Africa/Lagos (Primary off-peak trigger)
+    - cron: '42 16 * * 5'
+    # 17:12 UTC = 18:12 / 6:12 PM Africa/Lagos (Backup trigger)
+    - cron: '12 17 * * 5'
 
 jobs:
   timesheet:
@@ -59,13 +61,13 @@ jobs:
           TZ: Africa/Lagos
         run: |
           ARGS=""
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
+          if [ "${{ inputs.dry_run || github.event.client_payload.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi
-          if [ "${{ inputs.force }}" = "true" ]; then
+          if [ "${{ inputs.force || github.event.client_payload.force }}" = "true" ]; then
             ARGS="$ARGS --force"
           fi
-          if [ "${{ inputs.catchup }}" = "true" ]; then
+          if [ "${{ inputs.catchup || (github.event.client_payload && github.event.client_payload.catchup != false) }}" = "true" ]; then
             ARGS="$ARGS --catchup"
           fi
           node src/timesheet.js $ARGS

@@ -1,14 +1,8 @@
 name: Zoho People Check-In
 
 on:
-  schedule:
-    # Mon-Fri at off-peak minutes to avoid GitHub Actions global queue congestion
-    # 07:38 UTC = 08:38 AM Africa/Lagos (Primary off-peak trigger)
-    - cron: '38 7 * * 1-5'
-    # 07:52 UTC = 08:52 AM Africa/Lagos (Backup trigger)
-    - cron: '52 7 * * 1-5'
-    # 08:06 UTC = 09:06 AM Africa/Lagos (Safety net trigger)
-    - cron: '6 8 * * 1-5'
+  repository_dispatch:
+    types: [checkin]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -21,6 +15,14 @@ on:
         required: false
         default: false
         type: boolean
+  schedule:
+    # Mon-Fri at off-peak minutes to avoid GitHub Actions global queue congestion
+    # 07:38 UTC = 08:38 AM Africa/Lagos (Primary off-peak trigger)
+    - cron: '38 7 * * 1-5'
+    # 07:52 UTC = 08:52 AM Africa/Lagos (Backup trigger)
+    - cron: '52 7 * * 1-5'
+    # 08:06 UTC = 09:06 AM Africa/Lagos (Safety net trigger)
+    - cron: '6 8 * * 1-5'
 
 jobs:
   checkin:
@@ -58,10 +60,10 @@ jobs:
           TZ: Africa/Lagos
         run: |
           ARGS="--action checkin"
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
+          if [ "${{ inputs.dry_run || github.event.client_payload.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi
-          if [ "${{ inputs.force }}" = "true" ]; then
+          if [ "${{ inputs.force || github.event.client_payload.force }}" = "true" ]; then
             ARGS="$ARGS --force"
           fi
           node src/checkin.js $ARGS
